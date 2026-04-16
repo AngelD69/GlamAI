@@ -85,6 +85,8 @@ def cancel_appointment(
             current_user.id,
         )
         raise HTTPException(status_code=404, detail="Appointment not found")
-    db.delete(appointment)
+    if appointment.status == "cancelled":
+        raise HTTPException(status_code=400, detail="Appointment is already cancelled")
+    appointment.status = "cancelled"
     db.commit()
     logger.info("Appointment cancelled: id=%d", appointment_id)
