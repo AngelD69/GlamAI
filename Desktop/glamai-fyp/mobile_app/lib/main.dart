@@ -1,7 +1,7 @@
-import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
+import 'utils/app_theme.dart';
 import 'utils/logger.dart';
 
 void main() {
@@ -38,15 +38,7 @@ class GlamAIApp extends StatelessWidget {
     return MaterialApp(
       title: 'GlamAI',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE91E8C)),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFE91E8C),
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-      ),
+      theme: AppTheme.theme,
       home: const SplashScreen(),
     );
   }

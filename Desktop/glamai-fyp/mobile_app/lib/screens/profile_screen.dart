@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
+import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../utils/exceptions.dart';
 import '../utils/logger.dart';
@@ -43,7 +45,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
-    AppLogger.info(_tag, 'Loading profile for user ${widget.userId}');
     setState(() { _loading = true; _error = null; });
     try {
       final user = await ApiService.getMyProfile();
@@ -52,15 +53,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _selectedGender = user.gender;
       _dob = user.dateOfBirth != null ? DateTime.parse(user.dateOfBirth!) : null;
       setState(() { _user = user; _loading = false; });
-      AppLogger.debug(_tag, 'Profile loaded');
-    } on AuthException catch (e) {
-      AppLogger.warning(_tag, 'Auth expired: $e');
+    } on AuthException {
       _redirectToLogin();
     } on NetworkException catch (e) {
-      AppLogger.error(_tag, 'Network error loading profile', e);
       setState(() { _error = e.message; _loading = false; });
     } on AppException catch (e) {
-      AppLogger.error(_tag, 'Error loading profile', e);
       setState(() { _error = e.message; _loading = false; });
     }
   }
@@ -83,19 +80,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated!')),
       );
-    } on AuthException catch (e) {
-      AppLogger.warning(_tag, 'Auth expired on save: $e');
+    } on AuthException {
       _redirectToLogin();
     } on ValidationException catch (e) {
-      AppLogger.warning(_tag, 'Validation error: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-    } on NetworkException catch (e) {
-      AppLogger.error(_tag, 'Network error saving profile', e);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } on AppException catch (e) {
-      AppLogger.error(_tag, 'Error saving profile', e);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
@@ -107,7 +97,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
     if (picked == null) return;
-    AppLogger.info(_tag, 'Uploading profile picture');
     try {
       final updated = await ApiService.uploadProfilePicture(File(picked.path));
       if (!mounted) return;
@@ -115,15 +104,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Photo updated!')),
       );
-    } on AuthException catch (e) {
-      AppLogger.warning(_tag, 'Auth expired on photo upload: $e');
+    } on AuthException {
       _redirectToLogin();
-    } on NetworkException catch (e) {
-      AppLogger.error(_tag, 'Network error uploading photo', e);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } on AppException catch (e) {
-      AppLogger.error(_tag, 'Error uploading photo', e);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -135,6 +118,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       initialDate: _dob ?? DateTime(2000),
       firstDate: DateTime(1950),
       lastDate: DateTime.now(),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(primary: AppColors.primary),
+        ),
+        child: child!,
+      ),
     );
     if (picked != null) setState(() => _dob = picked);
   }
@@ -151,132 +140,222 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Profile')),
+      backgroundColor: AppColors.background,
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : _error != null
               ? Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(32),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.wifi_off, size: 64, color: Colors.grey),
+                        const Icon(Icons.wifi_off_rounded,
+                            size: 64, color: AppColors.textHint),
                         const SizedBox(height: 16),
                         Text(_error!,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.grey)),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _loadProfile,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                        ),
+                            style: GoogleFonts.poppins(
+                                fontSize: 14, color: AppColors.textSecondary)),
+                        const SizedBox(height: 20),
+                        GradientButton(
+                            label: 'Retry',
+                            onPressed: _loadProfile,
+                            icon: Icons.refresh_rounded),
                       ],
                     ),
                   ),
                 )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      GestureDetector(
-                        onTap: _uploadPhoto,
-                        child: Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 50,
-                              backgroundColor:
-                                  const Color(0xFFE91E8C).withValues(alpha: 0.15),
-                              backgroundImage: _user?.profilePicture != null
-                                  ? NetworkImage(
-                                      '${AppConfig.baseUrl}${_user!.profilePicture}')
-                                  : null,
-                              child: _user?.profilePicture == null
-                                  ? const Icon(Icons.person,
-                                      size: 50, color: Color(0xFFE91E8C))
-                                  : null,
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFE91E8C),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.camera_alt,
-                                    size: 16, color: Colors.white),
+              : CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Container(
+                        decoration: BoxDecoration(gradient: primaryGradient),
+                        child: SafeArea(
+                          bottom: false,
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 12),
+                                child: Text('My Profile',
+                                    style: GoogleFonts.poppins(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white)),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(_user?.email ?? '',
-                          style: const TextStyle(color: Colors.grey)),
-                      const SizedBox(height: 24),
-                      TextField(
-                        controller: _nameController,
-                        decoration: const InputDecoration(
-                            labelText: 'Full Name',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.person)),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _phoneController,
-                        decoration: const InputDecoration(
-                            labelText: 'Phone',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.phone)),
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedGender,
-                        decoration: const InputDecoration(
-                            labelText: 'Gender',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.wc)),
-                        items: const [
-                          DropdownMenuItem(value: 'Male', child: Text('Male')),
-                          DropdownMenuItem(value: 'Female', child: Text('Female')),
-                          DropdownMenuItem(value: 'Other', child: Text('Other')),
-                        ],
-                        onChanged: (val) => setState(() => _selectedGender = val),
-                      ),
-                      const SizedBox(height: 16),
-                      OutlinedButton.icon(
-                        onPressed: _pickDob,
-                        icon: const Icon(Icons.cake),
-                        label: Text(_dob == null
-                            ? 'Date of Birth'
-                            : '${_dob!.year}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}'),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 48),
-                          side: const BorderSide(color: Colors.grey),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _saving ? null : _saveProfile,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFE91E8C),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                              // Avatar
+                              GestureDetector(
+                                onTap: _uploadPhoto,
+                                child: Stack(
+                                  children: [
+                                    Container(
+                                      width: 96,
+                                      height: 96,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.white.withValues(alpha: 0.3),
+                                        image: _user?.profilePicture != null
+                                            ? DecorationImage(
+                                                image: NetworkImage(
+                                                    '${AppConfig.baseUrl}${_user!.profilePicture}'),
+                                                fit: BoxFit.cover)
+                                            : null,
+                                        border: Border.all(
+                                            color: Colors.white, width: 3),
+                                      ),
+                                      child: _user?.profilePicture == null
+                                          ? const Icon(Icons.person_rounded,
+                                              size: 48, color: Colors.white)
+                                          : null,
+                                    ),
+                                    Positioned(
+                                      bottom: 0,
+                                      right: 0,
+                                      child: Container(
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.15),
+                                              blurRadius: 6,
+                                            )
+                                          ],
+                                        ),
+                                        child: const Icon(
+                                            Icons.camera_alt_rounded,
+                                            size: 16,
+                                            color: AppColors.primary),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(_user?.name ?? '',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white)),
+                              Text(_user?.email ?? '',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      color: Colors.white.withValues(alpha: 0.85))),
+                              const SizedBox(height: 28),
+                            ],
                           ),
-                          child: _saving
-                              ? const CircularProgressIndicator(color: Colors.white)
-                              : const Text('Save Profile',
-                                  style: TextStyle(fontSize: 16)),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Transform.translate(
+                        offset: const Offset(0, -20),
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 20),
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.07),
+                                blurRadius: 20,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Personal Information',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary)),
+                              const SizedBox(height: 16),
+                              TextField(
+                                controller: _nameController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Full name',
+                                  prefixIcon: Icon(Icons.person_outline_rounded,
+                                      color: AppColors.textSecondary),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              TextField(
+                                controller: _phoneController,
+                                keyboardType: TextInputType.phone,
+                                decoration: const InputDecoration(
+                                  hintText: 'Phone number',
+                                  prefixIcon: Icon(Icons.phone_outlined,
+                                      color: AppColors.textSecondary),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              DropdownButtonFormField<String>(
+                                initialValue: _selectedGender,
+                                decoration: const InputDecoration(
+                                  hintText: 'Gender',
+                                  prefixIcon: Icon(Icons.wc_rounded,
+                                      color: AppColors.textSecondary),
+                                ),
+                                items: ['Male', 'Female', 'Other']
+                                    .map((g) => DropdownMenuItem(
+                                        value: g, child: Text(g)))
+                                    .toList(),
+                                onChanged: (val) =>
+                                    setState(() => _selectedGender = val),
+                              ),
+                              const SizedBox(height: 14),
+                              GestureDetector(
+                                onTap: _pickDob,
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F1F5),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.cake_rounded,
+                                          color: AppColors.textSecondary,
+                                          size: 20),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        _dob == null
+                                            ? 'Date of birth'
+                                            : '${_dob!.day}/${_dob!.month}/${_dob!.year}',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 14,
+                                          color: _dob == null
+                                              ? AppColors.textHint
+                                              : AppColors.textPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+                              GradientButton(
+                                label: 'Save Changes',
+                                onPressed: _saveProfile,
+                                loading: _saving,
+                                icon: Icons.check_rounded,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                  ],
                 ),
     );
   }
