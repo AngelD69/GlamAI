@@ -8,6 +8,7 @@ import 'services_screen.dart';
 import 'appointments_screen.dart';
 import 'profile_screen.dart';
 import 'recommendation_screen.dart';
+import 'chat_screen.dart';
 import 'login_screen.dart';
 import 'book_appointment_screen.dart';
 
@@ -33,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _DashboardTab(userId: widget.userId, onTabSwitch: switchTab),
       ServicesScreen(userId: widget.userId),
       AppointmentsScreen(userId: widget.userId),
+      ChatScreen(userId: widget.userId),
       RecommendationScreen(userId: widget.userId),
       ProfileScreen(userId: widget.userId),
     ];
@@ -65,6 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
             BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
             BottomNavigationBarItem(icon: Icon(Icons.spa_rounded), label: 'Services'),
             BottomNavigationBarItem(icon: Icon(Icons.calendar_month_rounded), label: 'Bookings'),
+            BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_rounded), label: 'GlamBot'),
             BottomNavigationBarItem(icon: Icon(Icons.auto_awesome_rounded), label: 'AI'),
             BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profile'),
           ],
@@ -220,8 +223,8 @@ class _DashboardTabState extends State<_DashboardTab> {
                           onTap: () => widget.onTabSwitch(2),
                         ),
                         _QuickAction(
-                          icon: Icons.auto_awesome_rounded,
-                          label: 'AI Stylist',
+                          icon: Icons.chat_bubble_rounded,
+                          label: 'GlamBot',
                           color: const Color(0xFFFF6D00),
                           onTap: () => widget.onTabSwitch(3),
                         ),
@@ -229,7 +232,7 @@ class _DashboardTabState extends State<_DashboardTab> {
                           icon: Icons.person_rounded,
                           label: 'Profile',
                           color: const Color(0xFF00897B),
-                          onTap: () => widget.onTabSwitch(4),
+                          onTap: () => widget.onTabSwitch(5),
                         ),
                       ],
                     ),
@@ -259,13 +262,13 @@ class _DashboardTabState extends State<_DashboardTab> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('AI Face Shape Detection',
+                          Text('AI Beauty Consultant',
                               style: GoogleFonts.poppins(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white)),
                           const SizedBox(height: 4),
-                          Text('Get personalised beauty recommendations',
+                          Text('Chat with GlamBot for beauty tips & advice',
                               style: GoogleFonts.poppins(
                                   fontSize: 12,
                                   color: Colors.white.withValues(alpha: 0.9))),
@@ -279,7 +282,7 @@ class _DashboardTabState extends State<_DashboardTab> {
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: Text('Try Now',
+                              child: Text('Chat Now',
                                   style: GoogleFonts.poppins(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
@@ -289,7 +292,7 @@ class _DashboardTabState extends State<_DashboardTab> {
                         ],
                       ),
                     ),
-                    const Icon(Icons.face_retouching_natural,
+                    const Icon(Icons.chat_bubble_rounded,
                         size: 64, color: Colors.white),
                   ],
                 ),

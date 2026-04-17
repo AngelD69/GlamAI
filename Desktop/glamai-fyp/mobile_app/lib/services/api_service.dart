@@ -237,6 +237,22 @@ class ApiService {
     });
   }
 
+  // ── AI CHAT ───────────────────────────────────────────────────────────────────
+
+  static Future<String> chat(List<Map<String, String>> messages) async {
+    return _safeCall('/chat/', () async {
+      final res = await http.post(
+        Uri.parse('$baseUrl/chat/'),
+        headers: await _authHeaders(),
+        body: jsonEncode({
+          'messages': messages,
+        }),
+      );
+      final body = _handle(res, '/chat/') as Map<String, dynamic>;
+      return body['reply'] as String;
+    });
+  }
+
   // ── AI RECOMMENDATION ─────────────────────────────────────────────────────────
 
   static Future<String> getRecommendation({

@@ -13,6 +13,7 @@ from app.models.user import User  # noqa: F401
 from app.routes.appointment import router as appointment_router
 from app.routes.auth import router as auth_router
 from app.routes.face_shape import router as face_shape_router
+from app.routes.chat import router as chat_router
 from app.routes.recommendation import router as recommendation_router
 from app.routes.service import router as service_router
 from app.routes.user import router as user_router
@@ -32,6 +33,7 @@ app.include_router(auth_router)
 app.include_router(appointment_router)
 app.include_router(service_router)
 app.include_router(user_router)
+app.include_router(chat_router)
 app.include_router(recommendation_router)
 app.include_router(face_shape_router)
 
