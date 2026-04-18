@@ -8,6 +8,7 @@ import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../utils/exceptions.dart';
 import '../utils/logger.dart';
+import 'admin_dashboard_screen.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -349,12 +350,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 loading: _saving,
                                 icon: Icons.check_rounded,
                               ),
+                              if (_user?.isAdmin == true) ...[
+                                const SizedBox(height: 14),
+                                GestureDetector(
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const AdminDashboardScreen(),
+                                    ),
+                                  ),
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14, horizontal: 16),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.07),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                          color: AppColors.primary.withValues(alpha: 0.25)),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.admin_panel_settings_rounded,
+                                            color: AppColors.primary, size: 20),
+                                        const SizedBox(width: 8),
+                                        Text('Admin Dashboard',
+                                            style: GoogleFonts.poppins(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.primary)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
                       ),
                     ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                    const SliverToBoxAdapter(child: SizedBox(height: 120)),
                   ],
                 ),
     );

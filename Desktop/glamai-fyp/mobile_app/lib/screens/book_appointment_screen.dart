@@ -6,6 +6,7 @@ import '../utils/app_theme.dart';
 import '../utils/exceptions.dart';
 import '../utils/logger.dart';
 import 'login_screen.dart';
+import 'payment_screen.dart';
 
 class BookAppointmentScreen extends StatefulWidget {
   final int userId;
@@ -87,17 +88,19 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     AppLogger.info(_tag, 'Booking service ${widget.service.id}');
     setState(() => _loading = true);
     try {
-      await ApiService.createAppointment(
+      final appointment = await ApiService.createAppointment(
         serviceId: widget.service.id,
         date: _formatDate(_selectedDate!),
         time: _formatTime(_selectedTime!),
         notes: _notesController.text.trim(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Appointment booked!')),
+      await Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentScreen(appointment: appointment),
+        ),
       );
-      Navigator.pop(context);
     } on AuthException {
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(

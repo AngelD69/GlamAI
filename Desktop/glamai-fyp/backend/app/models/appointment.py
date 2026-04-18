@@ -19,3 +19,4 @@ class Appointment(Base):
 
     user = relationship("User", back_populates="appointments")
     service = relationship("Service")
+    feedback = relationship("Feedback", back_populates="appointment", uselist=False)

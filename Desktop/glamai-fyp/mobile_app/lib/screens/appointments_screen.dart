@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/exceptions.dart';
 import '../utils/logger.dart';
+import 'feedback_screen.dart';
 import 'login_screen.dart';
 
 class AppointmentsScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   static const _tag = 'AppointmentsScreen';
 
   List<Appointment> _appointments = [];
+  Set<int> _reviewedAppointmentIds = {};
   bool _loading = true;
   String? _error;
 
@@ -32,8 +34,17 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     AppLogger.info(_tag, 'Loading appointments');
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await ApiService.getMyAppointments();
-      setState(() { _appointments = data; _loading = false; });
+      final results = await Future.wait([
+        ApiService.getMyAppointments(),
+        ApiService.getMyFeedback(),
+      ]);
+      final appointments = results[0] as List<Appointment>;
+      final feedbacks = results[1] as List;
+      setState(() {
+        _appointments = appointments;
+        _reviewedAppointmentIds = feedbacks.map((f) => f.appointmentId as int).toSet();
+        _loading = false;
+      });
     } on AuthException {
       _redirectToLogin();
     } on NetworkException catch (e) {
@@ -41,6 +52,14 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     } on AppException catch (e) {
       setState(() { _error = e.message; _loading = false; });
     }
+  }
+
+  Future<void> _openReview(Appointment appt) async {
+    final submitted = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => FeedbackScreen(appointment: appt)),
+    );
+    if (submitted == true) _loadAppointments();
   }
 
   Future<void> _cancel(Appointment appt) async {
@@ -210,12 +229,14 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             )
           else
             SliverPadding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, i) => _AppointmentCard(
                     appt: _appointments[i],
                     onCancel: _cancel,
+                    onReview: _openReview,
+                    hasReview: _reviewedAppointmentIds.contains(_appointments[i].id),
                   ),
                   childCount: _appointments.length,
                 ),
@@ -230,7 +251,15 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 class _AppointmentCard extends StatelessWidget {
   final Appointment appt;
   final void Function(Appointment) onCancel;
-  const _AppointmentCard({required this.appt, required this.onCancel});
+  final void Function(Appointment) onReview;
+  final bool hasReview;
+
+  const _AppointmentCard({
+    required this.appt,
+    required this.onCancel,
+    required this.onReview,
+    required this.hasReview,
+  });
 
   Color get _statusColor => switch (appt.status.toLowerCase()) {
         'confirmed' => AppColors.success,
@@ -377,21 +406,65 @@ class _AppointmentCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   const Divider(height: 1),
                   const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () => onCancel(appt),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.cancel_outlined,
-                            size: 16, color: AppColors.error),
-                        const SizedBox(width: 6),
-                        Text('Cancel Appointment',
-                            style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.error)),
+                  Row(
+                    children: [
+                      // Cancel button (left)
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => onCancel(appt),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.cancel_outlined,
+                                  size: 16, color: AppColors.error),
+                              const SizedBox(width: 5),
+                              Text('Cancel',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.error)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Divider between actions
+                      if (appt.isPast) ...[
+                        Container(width: 1, height: 18, color: AppColors.textHint),
+                        // Review button (right)
+                        Expanded(
+                          child: hasReview
+                              ? Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.check_circle_rounded,
+                                        size: 16, color: AppColors.success),
+                                    const SizedBox(width: 5),
+                                    Text('Reviewed',
+                                        style: GoogleFonts.poppins(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: AppColors.success)),
+                                  ],
+                                )
+                              : GestureDetector(
+                                  onTap: () => onReview(appt),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.rate_review_rounded,
+                                          size: 16, color: AppColors.primary),
+                                      const SizedBox(width: 5),
+                                      Text('Leave Review',
+                                          style: GoogleFonts.poppins(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                              color: AppColors.primary)),
+                                    ],
+                                  ),
+                                ),
+                        ),
                       ],
-                    ),
+                    ],
                   ),
                 ],
               ],

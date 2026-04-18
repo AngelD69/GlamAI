@@ -1,7 +1,8 @@
 import os
 from typing import Optional
 
-import anthropic
+from google import genai
+from google.genai import types
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -41,10 +42,10 @@ def get_recommendation(
         request.occasion,
     )
 
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key or api_key == "your_api_key_here":
-        logger.error("ANTHROPIC_API_KEY is not configured")
-        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY is not configured")
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key or api_key == "your_gemini_key_here":
+        logger.error("GEMINI_API_KEY is not configured")
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not configured")
 
     services = db.query(Service).all()
     if not services:
@@ -52,8 +53,7 @@ def get_recommendation(
         raise HTTPException(status_code=404, detail="No services available to recommend from")
 
     service_list = "\n".join(
-        f"- {s.name} (NPR {s.price}): "
-        f"{s.description or 'No description'}"
+        f"- {s.name} (NPR {s.price}): {s.description or 'No description'}"
         for s in services
     )
 
@@ -81,16 +81,16 @@ Based on the customer's details, recommend the most suitable services from the l
 Explain why each recommended service suits them. Keep your response friendly, practical, and under 200 words."""
 
     try:
-        client = anthropic.Anthropic(api_key=api_key)
-        message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=400,
-            messages=[{"role": "user", "content": prompt}],
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(max_output_tokens=400),
         )
-        recommendation_text = message.content[0].text
+        recommendation_text = response.text
         logger.info("Recommendation generated for user id=%d", current_user.id)
-    except anthropic.APIError as e:
-        logger.error("Anthropic API error for user id=%d: %s", current_user.id, e)
+    except Exception as e:
+        logger.error("Gemini API error for user id=%d: %s", current_user.id, e)
         raise HTTPException(
             status_code=502,
             detail="AI service is temporarily unavailable. Please try again later.",

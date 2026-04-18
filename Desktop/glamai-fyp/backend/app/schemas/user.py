@@ -29,6 +29,7 @@ class UserResponse(BaseModel):
     gender: Optional[str] = None
     date_of_birth: Optional[date] = None
     profile_picture: Optional[str] = None
+    is_admin: bool = False
 
     class Config:
         from_attributes = True

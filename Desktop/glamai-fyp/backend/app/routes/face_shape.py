@@ -64,8 +64,10 @@ def _get_model():
 
 @router.post("/detect", response_model=FaceShapeResult)
 async def detect_face_shape(file: UploadFile = File(...)):
-    allowed = {"image/jpeg", "image/png", "image/webp"}
-    if file.content_type not in allowed:
+    allowed_types = {"image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"}
+    allowed_exts = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if file.content_type not in allowed_types and ext not in allowed_exts:
         raise HTTPException(status_code=400, detail="Only JPEG, PNG, or WEBP images are allowed")
 
     logger.info("Face shape detection request — file=%s type=%s", file.filename, file.content_type)

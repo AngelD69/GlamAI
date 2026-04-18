@@ -8,9 +8,14 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import Base, engine
 from app.models.appointment import Appointment  # noqa: F401 – needed for table creation
+from app.models.feedback import Feedback  # noqa: F401
+from app.models.payment import Payment  # noqa: F401
 from app.models.service import Service  # noqa: F401
 from app.models.user import User  # noqa: F401
+from app.routes.admin import router as admin_router
 from app.routes.appointment import router as appointment_router
+from app.routes.feedback import router as feedback_router
+from app.routes.payment import router as payment_router
 from app.routes.auth import router as auth_router
 from app.routes.face_shape import router as face_shape_router
 from app.routes.chat import router as chat_router
@@ -36,6 +41,9 @@ app.include_router(user_router)
 app.include_router(chat_router)
 app.include_router(recommendation_router)
 app.include_router(face_shape_router)
+app.include_router(feedback_router)
+app.include_router(payment_router)
+app.include_router(admin_router)
 
 
 # ── Request / response logging middleware ─────────────────────────────────────

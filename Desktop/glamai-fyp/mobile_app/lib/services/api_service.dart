@@ -2,8 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/admin_stats.dart';
 import '../models/appointment.dart';
+import '../models/payment.dart';
 import '../models/face_shape_result.dart';
+import '../models/feedback.dart';
 import '../models/service.dart';
 import '../models/user.dart';
 import '../utils/config.dart';
@@ -250,6 +253,86 @@ class ApiService {
       );
       final body = _handle(res, '/chat/') as Map<String, dynamic>;
       return body['reply'] as String;
+    });
+  }
+
+  // ── PAYMENTS ──────────────────────────────────────────────────────────────────
+
+  static Future<Payment> recordPayment({
+    required int appointmentId,
+    required String paymentMethod,
+  }) async {
+    return _safeCall('/payments/', () async {
+      final res = await http.post(
+        Uri.parse('$baseUrl/payments/'),
+        headers: await _authHeaders(),
+        body: jsonEncode({
+          'appointment_id': appointmentId,
+          'payment_method': paymentMethod,
+        }),
+      );
+      final body = _handle(res, '/payments/') as Map<String, dynamic>;
+      AppLogger.info(_tag, 'Payment recorded: ${body['transaction_ref']}');
+      return Payment.fromJson(body);
+    });
+  }
+
+  static Future<List<Payment>> getMyPayments() async {
+    return _safeCall('/payments/my', () async {
+      final res = await http.get(
+        Uri.parse('$baseUrl/payments/my'),
+        headers: await _authHeaders(),
+      );
+      final list = _handle(res, '/payments/my') as List<dynamic>;
+      return list.map((e) => Payment.fromJson(e as Map<String, dynamic>)).toList();
+    });
+  }
+
+  // ── ADMIN ─────────────────────────────────────────────────────────────────────
+
+  static Future<AdminStats> getAdminDashboard() async {
+    return _safeCall('/admin/dashboard', () async {
+      final res = await http.get(
+        Uri.parse('$baseUrl/admin/dashboard'),
+        headers: await _authHeaders(),
+      );
+      final body = _handle(res, '/admin/dashboard') as Map<String, dynamic>;
+      AppLogger.info(_tag, 'Admin dashboard fetched');
+      return AdminStats.fromJson(body);
+    });
+  }
+
+  // ── FEEDBACK ──────────────────────────────────────────────────────────────────
+
+  static Future<AppFeedback> submitFeedback({
+    required int appointmentId,
+    required int rating,
+    required String reviewText,
+  }) async {
+    return _safeCall('/feedback/', () async {
+      final res = await http.post(
+        Uri.parse('$baseUrl/feedback/'),
+        headers: await _authHeaders(),
+        body: jsonEncode({
+          'appointment_id': appointmentId,
+          'rating': rating,
+          'review_text': reviewText,
+        }),
+      );
+      final body = _handle(res, '/feedback/') as Map<String, dynamic>;
+      AppLogger.info(_tag, 'Feedback submitted for appointment $appointmentId');
+      return AppFeedback.fromJson(body);
+    });
+  }
+
+  static Future<List<AppFeedback>> getMyFeedback() async {
+    return _safeCall('/feedback/my', () async {
+      final res = await http.get(
+        Uri.parse('$baseUrl/feedback/my'),
+        headers: await _authHeaders(),
+      );
+      final list = _handle(res, '/feedback/my') as List<dynamic>;
+      return list.map((e) => AppFeedback.fromJson(e as Map<String, dynamic>)).toList();
     });
   }
 

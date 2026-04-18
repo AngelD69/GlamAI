@@ -22,6 +22,9 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
 
   final _occasionController = TextEditingController();
   final _concernsController = TextEditingController();
+  final _scrollController = ScrollController();
+  final _resultKey = GlobalKey();
+
   String? _faceShape;
   String? _hairType;
   String? _result;
@@ -37,7 +40,22 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
   void dispose() {
     _occasionController.dispose();
     _concernsController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToResult() {
+    // Wait for keyboard to fully dismiss and layout to settle, then scroll
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   Future<void> _autoDetectFaceShape() async {
@@ -91,7 +109,10 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     if (picked == null) return;
 
     AppLogger.info(_tag, 'Running face shape detection');
-    setState(() { _detecting = true; _error = null; });
+    setState(() {
+      _detecting = true;
+      _error = null;
+    });
 
     try {
       final FaceShapeResult result =
@@ -123,8 +144,13 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
   }
 
   Future<void> _getRecommendation() async {
+    FocusScope.of(context).unfocus();
     AppLogger.info(_tag, 'Fetching recommendation');
-    setState(() { _loading = true; _error = null; _result = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+      _result = null;
+    });
     try {
       final body = await ApiService.getRecommendation(
         faceShape: _faceShape,
@@ -137,6 +163,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
             : _concernsController.text.trim(),
       );
       setState(() => _result = body);
+      _scrollToResult();
     } on AuthException {
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
@@ -149,7 +176,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     } on AppException catch (e) {
       setState(() => _error = e.message);
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -157,16 +184,20 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          // ── Header ──────────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Container(
+      resizeToAvoidBottomInset: false,
+      body: SingleChildScrollView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Header ──────────────────────────────────────────────────────
+            Container(
               decoration: BoxDecoration(gradient: primaryGradient),
               child: SafeArea(
                 bottom: false,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -184,142 +215,265 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                 ),
               ),
             ),
-          ),
 
-          SliverToBoxAdapter(
-            child: Transform.translate(
-              offset: const Offset(0, -20),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: [
-                    // ── Face detect card ───────────────────────────────────
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.07),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  gradient: primaryGradient,
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: const Icon(
-                                    Icons.face_retouching_natural,
-                                    color: Colors.white,
-                                    size: 26),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Auto-Detect Face Shape',
-                                        style: GoogleFonts.poppins(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.textPrimary)),
-                                    Text('Upload a selfie for AI analysis',
-                                        style: GoogleFonts.poppins(
-                                            fontSize: 12,
-                                            color: AppColors.textSecondary)),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          if (_faceShape != null && _detectionConfidence != null) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ── Face detect card ─────────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.07),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
+                              width: 48,
+                              height: 48,
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(12),
+                                gradient: primaryGradient,
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                              child: Row(
+                              child: const Icon(
+                                  Icons.face_retouching_natural,
+                                  color: Colors.white,
+                                  size: 26),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.check_circle_rounded,
-                                      color: AppColors.primary, size: 18),
-                                  const SizedBox(width: 8),
+                                  Text('Auto-Detect Face Shape',
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.textPrimary)),
                                   Text(
-                                    'Detected: $_faceShape face  •  ${_detectionConfidence!.toStringAsFixed(1)}% confidence',
+                                      'Detects face shape — select hair type below',
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondary)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_faceShape != null &&
+                            _detectionConfidence != null) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.check_circle_rounded,
+                                    color: AppColors.primary, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Detected: $_faceShape  •  ${_detectionConfidence!.toStringAsFixed(1)}% confidence',
                                     style: GoogleFonts.poppins(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w500,
                                         color: AppColors.primary),
                                   ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                          SizedBox(
-                            width: double.infinity,
-                            height: 46,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: _detecting
-                                    ? const LinearGradient(
-                                        colors: [Colors.grey, Colors.grey])
-                                    : primaryGradient,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: ElevatedButton.icon(
-                                onPressed: _detecting ? null : _autoDetectFaceShape,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  shadowColor: Colors.transparent,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
                                 ),
-                                icon: _detecting
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                            color: Colors.white, strokeWidth: 2),
-                                      )
-                                    : const Icon(Icons.camera_alt_rounded,
-                                        color: Colors.white, size: 18),
-                                label: Text(
-                                    _detecting ? 'Detecting…' : 'Detect My Face Shape',
-                                    style: GoogleFonts.poppins(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white)),
-                              ),
+                              ],
                             ),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          height: 46,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: _detecting
+                                  ? const LinearGradient(
+                                      colors: [Colors.grey, Colors.grey])
+                                  : primaryGradient,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ElevatedButton.icon(
+                              onPressed:
+                                  _detecting ? null : _autoDetectFaceShape,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              icon: _detecting
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white, strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.camera_alt_rounded,
+                                      color: Colors.white, size: 18),
+                              label: Text(
+                                  _detecting
+                                      ? 'Detecting…'
+                                      : 'Detect My Face Shape',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // ── Manual selections card ───────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.07),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Your Details',
+                            style: GoogleFonts.poppins(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary)),
+                        const SizedBox(height: 4),
+                        Text('Select your details below',
+                            style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: AppColors.textSecondary)),
+                        const SizedBox(height: 16),
+
+                        _SectionLabel(label: 'Face Shape'),
+                        const SizedBox(height: 8),
+                        _ChipSelector(
+                          options: _faceShapes,
+                          selected: _faceShape,
+                          onSelect: (val) => setState(() {
+                            _faceShape = val;
+                            _detectionConfidence = null;
+                          }),
+                        ),
+                        const SizedBox(height: 16),
+
+                        _SectionLabel(label: 'Hair Type'),
+                        const SizedBox(height: 8),
+                        _ChipSelector(
+                          options: _hairTypes,
+                          selected: _hairType,
+                          onSelect: (val) =>
+                              setState(() => _hairType = val),
+                        ),
+                        const SizedBox(height: 16),
+
+                        _SectionLabel(label: 'Occasion'),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _occasionController,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            hintText: 'e.g. Wedding, casual outing…',
+                            prefixIcon: Icon(Icons.event_rounded,
+                                color: AppColors.textSecondary),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        _SectionLabel(label: 'Hair & Skin Concerns'),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _concernsController,
+                          maxLines: 2,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _getRecommendation(),
+                          decoration: const InputDecoration(
+                            hintText: 'e.g. Dry hair, oily skin, dandruff…',
+                            prefixIcon: Icon(Icons.info_outline_rounded,
+                                color: AppColors.textSecondary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  if (_error != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded,
+                              color: AppColors.error, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(_error!,
+                                style: GoogleFonts.poppins(
+                                    fontSize: 13, color: AppColors.error)),
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(height: 12),
+                  ],
 
-                    const SizedBox(height: 16),
+                  GradientButton(
+                    label: 'Get My Recommendations',
+                    onPressed: _getRecommendation,
+                    loading: _loading,
+                    icon: Icons.auto_awesome_rounded,
+                  ),
 
-                    // ── Manual selections card ─────────────────────────────
+                  // ── Result card ──────────────────────────────────────────
+                  if (_result != null) ...[
+                    const SizedBox(height: 20),
                     Container(
+                      key: _resultKey,
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.2)),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.07),
+                            color: AppColors.primary.withValues(alpha: 0.07),
                             blurRadius: 16,
                             offset: const Offset(0, 4),
                           ),
@@ -328,158 +482,48 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Your Details',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary)),
-                          const SizedBox(height: 4),
-                          Text('Or select manually below',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 12, color: AppColors.textSecondary)),
-                          const SizedBox(height: 16),
-
-                          // Face shape
-                          _SectionLabel(label: 'Face Shape'),
-                          const SizedBox(height: 8),
-                          _ChipSelector(
-                            options: _faceShapes,
-                            selected: _faceShape,
-                            onSelect: (val) => setState(() {
-                              _faceShape = val;
-                              _detectionConfidence = null;
-                            }),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Hair type
-                          _SectionLabel(label: 'Hair Type'),
-                          const SizedBox(height: 8),
-                          _ChipSelector(
-                            options: _hairTypes,
-                            selected: _hairType,
-                            onSelect: (val) =>
-                                setState(() => _hairType = val),
-                          ),
-                          const SizedBox(height: 16),
-
-                          _SectionLabel(label: 'Occasion'),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _occasionController,
-                            decoration: const InputDecoration(
-                              hintText: 'e.g. Wedding, casual outing…',
-                              prefixIcon: Icon(Icons.event_rounded,
-                                  color: AppColors.textSecondary),
-                            ),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  gradient: primaryGradient,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(Icons.auto_awesome_rounded,
+                                    color: Colors.white, size: 18),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text('Your AI Recommendations',
+                                    style: GoogleFonts.poppins(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textPrimary)),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 14),
-
-                          _SectionLabel(label: 'Hair & Skin Concerns'),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _concernsController,
-                            maxLines: 2,
-                            decoration: const InputDecoration(
-                              hintText: 'e.g. Dry hair, oily skin, dandruff…',
-                              prefixIcon: Icon(Icons.info_outline_rounded,
-                                  color: AppColors.textSecondary),
+                          const Divider(),
+                          const SizedBox(height: 10),
+                          Text(
+                            _result!,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              height: 1.7,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ],
                       ),
                     ),
-
-                    const SizedBox(height: 16),
-
-                    if (_error != null) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.error_outline_rounded,
-                                color: AppColors.error, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(_error!,
-                                  style: GoogleFonts.poppins(
-                                      fontSize: 13, color: AppColors.error)),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-
-                    GradientButton(
-                      label: 'Get My Recommendations',
-                      onPressed: _getRecommendation,
-                      loading: _loading,
-                      icon: Icons.auto_awesome_rounded,
-                    ),
-
-                    // ── Result card ────────────────────────────────────────
-                    if (_result != null) ...[
-                      const SizedBox(height: 20),
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppColors.primary.withValues(alpha: 0.05),
-                              AppColors.secondary.withValues(alpha: 0.05),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.2)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    gradient: primaryGradient,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(Icons.auto_awesome_rounded,
-                                      color: Colors.white, size: 18),
-                                ),
-                                const SizedBox(width: 10),
-                                Text('Your AI Recommendations',
-                                    style: GoogleFonts.poppins(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textPrimary)),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            const Divider(),
-                            const SizedBox(height: 10),
-                            Text(_result!,
-                                style: GoogleFonts.poppins(
-                                    fontSize: 14,
-                                    height: 1.7,
-                                    color: AppColors.textPrimary)),
-                          ],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 32),
                   ],
-                ),
+                  const SizedBox(height: 120),
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -536,9 +580,8 @@ class _ChipSelector extends StatelessWidget {
             child: Text(opt,
                 style: GoogleFonts.poppins(
                     fontSize: 13,
-                    fontWeight: isSelected
-                        ? FontWeight.w600
-                        : FontWeight.normal,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
                     color: isSelected
                         ? Colors.white
                         : AppColors.textSecondary)),

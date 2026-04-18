@@ -410,7 +410,7 @@ class _DashboardTabState extends State<_DashboardTab> {
             ),
           ],
 
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );

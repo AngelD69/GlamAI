@@ -6,6 +6,7 @@ class User {
   final String? gender;
   final String? dateOfBirth;
   final String? profilePicture;
+  final bool isAdmin;
 
   const User({
     required this.id,
@@ -15,6 +16,7 @@ class User {
     this.gender,
     this.dateOfBirth,
     this.profilePicture,
+    this.isAdmin = false,
   });
 
   factory User.fromJson(Map<String, dynamic> json) => User(
@@ -25,6 +27,7 @@ class User {
         gender: json['gender'] as String?,
         dateOfBirth: json['date_of_birth'] as String?,
         profilePicture: json['profile_picture'] as String?,
+        isAdmin: (json['is_admin'] as bool?) ?? false,
       );
 
   User copyWith({
@@ -42,5 +45,6 @@ class User {
         gender: gender ?? this.gender,
         dateOfBirth: dateOfBirth ?? this.dateOfBirth,
         profilePicture: profilePicture ?? this.profilePicture,
+        isAdmin: isAdmin,
       );
 }

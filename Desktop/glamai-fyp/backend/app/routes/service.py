@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.models.service import Service
 from app.models.user import User
 from app.schemas.service import ServiceCreate, ServiceResponse
-from app.utils.dependencies import get_current_user, get_db
+from app.utils.dependencies import get_admin_user, get_current_user, get_db
 from app.utils.logger import get_logger
 
 router = APIRouter(prefix="/services", tags=["Services"])
@@ -14,7 +14,7 @@ logger = get_logger("service")
 @router.post("/", response_model=ServiceResponse, status_code=201)
 def create_service(
     service: ServiceCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     logger.info("User id=%d creating service name=%s", current_user.id, service.name)
@@ -45,7 +45,7 @@ def get_all_services(db: Session = Depends(get_db)):
 @router.delete("/{service_id}", status_code=204)
 def delete_service(
     service_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     logger.info("User id=%d deleting service id=%d", current_user.id, service_id)

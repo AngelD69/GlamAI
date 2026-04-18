@@ -50,6 +50,17 @@ class Appointment {
     }
   }
 
+  /// True when the appointment date is today or in the past.
+  bool get isPast {
+    try {
+      return DateTime.parse(appointmentDate).isBefore(
+        DateTime.now().add(const Duration(days: 1)),
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Returns display time: '10:30 AM'
   String get formattedTime {
     try {

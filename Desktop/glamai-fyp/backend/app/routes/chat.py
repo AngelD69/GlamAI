@@ -1,7 +1,8 @@
 import os
 from typing import List
 
-import anthropic
+from google import genai
+from google.genai import types
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -50,10 +51,10 @@ def chat(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key or api_key == "your_api_key_here":
-        logger.error("ANTHROPIC_API_KEY not configured")
-        raise HTTPException(status_code=503, detail="AI service not configured. Please set ANTHROPIC_API_KEY.")
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key or api_key == "your_gemini_key_here":
+        logger.error("GEMINI_API_KEY not configured")
+        raise HTTPException(status_code=503, detail="AI service not configured. Please set GEMINI_API_KEY.")
 
     if not request.messages:
         raise HTTPException(status_code=422, detail="No messages provided")
@@ -64,7 +65,7 @@ def chat(
         len(request.messages),
     )
 
-    # Build services context for the system prompt
+    # Build services context
     services = db.query(Service).all()
     service_list = ", ".join(f"{s.name} (NPR {int(s.price)})" for s in services)
     system = SYSTEM_PROMPT
@@ -73,17 +74,28 @@ def chat(
     system += f"\n\nYou are speaking with {current_user.name}."
 
     try:
-        client = anthropic.Anthropic(api_key=api_key)
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=512,
-            system=system,
-            messages=[{"role": m.role, "content": m.content} for m in request.messages],
+        client = genai.Client(api_key=api_key)
+
+        # Build conversation history
+        history = []
+        for m in request.messages[:-1]:
+            role = "user" if m.role == "user" else "model"
+            history.append(types.Content(role=role, parts=[types.Part(text=m.content)]))
+
+        last_message = request.messages[-1].content
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=history + [types.Content(role="user", parts=[types.Part(text=last_message)])],
+            config=types.GenerateContentConfig(
+                system_instruction=system,
+                max_output_tokens=512,
+            ),
         )
-        reply = response.content[0].text
+        reply = response.text
         logger.info("Chat reply sent to user id=%d", current_user.id)
-    except anthropic.APIError as e:
-        logger.error("Anthropic API error: %s", e)
+    except Exception as e:
+        logger.error("Gemini API error: %s", e)
         raise HTTPException(status_code=502, detail="AI service temporarily unavailable.")
 
     return ChatResponse(reply=reply)

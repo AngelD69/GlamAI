@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date
+from sqlalchemy import Boolean, Column, Integer, String, Date
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -15,5 +15,6 @@ class User(Base):
     gender = Column(String, nullable=True)
     date_of_birth = Column(Date, nullable=True)
     profile_picture = Column(String, nullable=True)
+    is_admin = Column(Boolean, nullable=False, server_default="false")
 
     appointments = relationship("Appointment", back_populates="user")
